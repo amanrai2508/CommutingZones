@@ -53,9 +53,50 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+def create_sample_data():
+    """Create sample commuting zones data for demonstration"""
+    sample_data = {
+        'region': ['Europe'] * 67,
+        'fbcz_id': [f'Europe{i:03d}' for i in range(1, 68)],
+        'fbcz_id_num': list(range(1, 68)),
+        'cz_gen_ds': ['2023-03-01'] * 67,
+        'win_population': [
+            4442659, 4442659, 4442659, 4442659, 2883908,  # Top 5 UK zones
+            2000000, 1800000, 1600000, 1400000, 1200000,  # More UK zones
+        ] + [np.random.randint(50000, 1000000) for _ in range(57)],  # Random for demo
+        'win_roads_km': [np.random.randint(1000, 5000) for _ in range(67)],
+        'area': [
+            4877.340, 4673.963, 2435.145, 5708.196, 3386.769,  # Top 5 UK zones
+            3000, 2800, 2600, 2400, 2200,  # More UK zones
+        ] + [np.random.randint(500, 3000) for _ in range(57)],  # Random for demo
+        'country': ['United Kingdom'] * 67,
+        'geography_wkt': [
+            'POLYGON((-0.5 51.5, -0.4 51.5, -0.4 51.6, -0.5 51.6, -0.5 51.5))',  # London area
+            'POLYGON((-1.5 52.5, -1.4 52.5, -1.4 52.6, -1.5 52.6, -1.5 52.5))',  # Birmingham area
+            'POLYGON((-2.5 53.5, -2.4 53.5, -2.4 53.6, -2.5 53.6, -2.5 53.5))',  # Manchester area
+            'POLYGON((-3.5 54.5, -3.4 54.5, -3.4 54.6, -3.5 54.6, -3.5 54.5))',  # Liverpool area
+            'POLYGON((-4.5 55.5, -4.4 55.5, -4.4 55.6, -4.5 55.6, -4.5 55.5))',  # Glasgow area
+        ] + [
+            f'POLYGON(({-5 + i*0.1} {56 + i*0.1}, {-4.9 + i*0.1} {56 + i*0.1}, {-4.9 + i*0.1} {56.1 + i*0.1}, {-5 + i*0.1} {56.1 + i*0.1}, {-5 + i*0.1} {56 + i*0.1}))'
+            for i in range(62)
+        ]
+    }
+    
+    # Create summary data
+    summary_data = {
+        'country': ['United Kingdom'],
+        'total_zones': [67],
+        'total_population': [sum(sample_data['win_population'])],
+        'total_area': [sum(sample_data['area'])],
+        'avg_population': [np.mean(sample_data['win_population'])],
+        'avg_area': [np.mean(sample_data['area'])]
+    }
+    
+    return pd.DataFrame(sample_data), pd.DataFrame(summary_data)
+
 @st.cache_data
 def load_commuting_zones_data():
-    """Load commuting zones data using R script"""
+    """Load commuting zones data using R script or fallback to sample data"""
     try:
         # Create R script to extract data with geometry
         r_script = '''
@@ -114,12 +155,12 @@ def load_commuting_zones_data():
             
             return pd.DataFrame(data), pd.DataFrame(summary)
         else:
-            st.error(f"Error running R script: {result.stderr}")
-            return None, None
+            st.warning("R processing not available. Using sample data for demonstration.")
+            return create_sample_data()
             
     except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return None, None
+        st.warning("R processing not available. Using sample data for demonstration.")
+        return create_sample_data()
 
 @st.cache_data
 def get_available_countries(data):
@@ -326,6 +367,10 @@ def main():
     if data is None:
         st.error("Failed to load data. Please check if the CommutingZones R package is installed.")
         st.stop()
+    
+    # Show demo notice if using sample data
+    if 'sample_data' in st.session_state and st.session_state.sample_data:
+        st.info("🎯 **Demo Mode**: Using sample data for demonstration. For full functionality, run locally with R installed.")
     
     # Main content based on selected page
     if page == "Overview":

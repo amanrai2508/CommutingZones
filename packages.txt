@@ -1,2 +1,8 @@
-r-base
-r-base-dev 
+
+# System packages needed for geographic data processing
+libgeos-dev
+libproj-dev
+proj-data
+proj-bin
+libgdal-dev
+gdal-bin
