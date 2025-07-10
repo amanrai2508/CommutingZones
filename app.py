@@ -10,7 +10,7 @@ import subprocess
 import sys
 import os
 import folium
-from streamlit_folium import folium_static
+from streamlit_folium import st_folium
 import geopandas as gpd
 from shapely.wkt import loads
 import branca.colormap as cm
@@ -185,9 +185,20 @@ def create_geographic_map(data, selected_country, map_type="population"):
         country_data['geometry'] = country_data['geography_wkt'].apply(loads)
         gdf = gpd.GeoDataFrame(country_data, crs="EPSG:4326")
         
-        # Calculate center of the map
-        center_lat = gdf.geometry.centroid.y.mean()
-        center_lon = gdf.geometry.centroid.x.mean()
+        # Calculate center of the map (handle geographic CRS properly)
+        try:
+            # Convert to a projected CRS for centroid calculation
+            gdf_projected = gdf.to_crs('EPSG:3857')
+            center_lat = gdf_projected.geometry.centroid.y.mean()
+            center_lon = gdf_projected.geometry.centroid.x.mean()
+            # Convert back to lat/lon
+            from pyproj import Transformer
+            transformer = Transformer.from_crs('EPSG:3857', 'EPSG:4326', always_xy=True)
+            center_lon, center_lat = transformer.transform(center_lon, center_lat)
+        except:
+            # Fallback to simple mean if projection fails
+            center_lat = gdf.geometry.centroid.y.mean()
+            center_lon = gdf.geometry.centroid.x.mean()
         
         # Create base map
         m = folium.Map(
@@ -446,7 +457,7 @@ def show_geographic_maps(data):
         if map_obj:
             # Display the map
             st.markdown('<div class="map-container">', unsafe_allow_html=True)
-            folium_static(map_obj, width=800, height=600)
+            st_folium(map_obj, width=800, height=600, returned_objects=[])
             st.markdown('</div>', unsafe_allow_html=True)
             
             # Map controls
@@ -530,7 +541,7 @@ def show_country_analysis(data):
             map_obj = create_geographic_map(data, selected_country, map_type.lower())
         
         if map_obj:
-            folium_static(map_obj, width=800, height=500)
+            st_folium(map_obj, width=800, height=500, returned_objects=[])
         else:
             st.warning("No map data available for this country.")
         
@@ -603,7 +614,7 @@ def show_zone_details(data):
             st.subheader("Zone Location")
             zone_map = create_geographic_map(data, selected_country, "population")
             if zone_map:
-                folium_static(zone_map, width=600, height=400)
+                st_folium(zone_map, width=600, height=400, returned_objects=[])
             
             # All zones table
             st.subheader("All Zones in Selected Country")
